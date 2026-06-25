@@ -1,2 +1,5 @@
 .venv
 logs
+.idea
+.DS_STORE
+build
