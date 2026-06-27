@@ -1,12 +1,74 @@
 /*
- * formatter.c — EduOS libeduos
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2024 EduOS-Org
  *
- * Phase 4 — not yet implemented.
- * See AI_ENGINE.md for the full roadmap.
+ * formatter.c — age-mode response formatting.
+ * Phase 4: Playground/Explorer truncate to first 2 sentences.
+ * Full vocabulary adaptation comes in Phase 7 (fine-tuning).
  */
 
-#include "eduos/eduos.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-/* stub */
+#include "eduos/eduos_types.h"
+
+/*
+ * Return a heap-allocated copy of raw truncated to the first n_sentences.
+ * Sentence boundaries: '. ', '! ', '? ', or end of string.
+ */
+static char *first_n_sentences(const char *raw, int n)
+{
+    if (!raw) return NULL;
+
+    const char *p = raw;
+    int found = 0;
+    const char *end = raw + strlen(raw);
+
+    while (*p && found < n) {
+        if ((*p == '.' || *p == '!' || *p == '?') &&
+            (*(p + 1) == ' ' || *(p + 1) == '\0')) {
+            found++;
+            if (found == n) {
+                p++; /* include the punctuation */
+                break;
+            }
+        }
+        p++;
+    }
+
+    /* If we didn't find enough sentence boundaries, use the whole string */
+    if (found < n)
+        p = end;
+
+    size_t len = (size_t)(p - raw);
+    char *out = malloc(len + 1);
+    if (!out) return NULL;
+    memcpy(out, raw, len);
+    out[len] = '\0';
+    return out;
+}
+
+/*
+ * Format a DB response string for the student's age mode.
+ *
+ * PLAYGROUND / EXPLORER  — truncate to first 2 sentences (Phase 4).
+ * LAUNCHPAD / PROFESSIONAL — return as-is.
+ *
+ * Returns heap-allocated string. Caller must free.
+ */
+char *eduos_format_response(const char *raw, eduos_age_mode_t mode)
+{
+    if (!raw) return strdup("");
+
+    switch (mode) {
+    case EDUOS_MODE_PLAYGROUND:
+    case EDUOS_MODE_EXPLORER:
+        return first_n_sentences(raw, 2);
+
+    case EDUOS_MODE_LAUNCHPAD:
+    case EDUOS_MODE_PROFESSIONAL:
+    default:
+        return strdup(raw);
+    }
+}
