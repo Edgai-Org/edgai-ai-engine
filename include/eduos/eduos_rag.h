@@ -8,23 +8,32 @@
 
 #include "eduos_types.h"
 
-/*
- * Internal interface — not exposed to consumers of libeduos.
- * Phase 4 will implement these in src/rag/.
- * Phase 3 stubs return NULL / 0.
- */
+struct sqlite3;
 
 typedef struct {
-    char  *question_id;
-    char  *question_text;
-    char  *hook;
-    char  *predict;
-    char  *steps_json;
-    char  *how_to_ace;
+    char   question_id[64];
+    char  *question_text;   /* heap-allocated */
+    char  *hook;            /* heap-allocated */
+    char  *predict;         /* heap-allocated */
+    char  *steps_json;      /* heap-allocated — raw JSON array string */
+    char  *how_to_ace;      /* heap-allocated */
     float  score;
 } eduos_rag_result_t;
 
-eduos_rag_result_t *eduos_rag_retrieve(const char *query, eduos_age_mode_t mode, int top_k);
-void                eduos_rag_result_free(eduos_rag_result_t *result);
+/*
+ * Search the curriculum DB via FTS5.
+ * Preprocesses raw_query before searching.
+ * Returns array of top_k results; *out_count set to actual count.
+ * Caller frees with eduos_rag_results_free().
+ */
+eduos_rag_result_t *eduos_rag_retrieve(
+    struct sqlite3   *db,
+    const char       *raw_query,
+    eduos_age_mode_t  mode,
+    int               top_k,
+    int              *out_count
+);
+
+void eduos_rag_results_free(eduos_rag_result_t *results, int count);
 
 #endif /* EDUOS_RAG_H */

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 EduOS RAG Engine — Test Client
 Connects to the engine socket and lets you talk to it from terminal.

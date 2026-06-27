@@ -8,6 +8,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 typedef enum {
     EDUOS_MODE_PLAYGROUND   = 0,  /* ages 3–10  */
@@ -33,21 +34,53 @@ typedef enum {
     EDUOS_STATE_DONE     = 7
 } eduos_sequence_state_t;
 
+typedef enum {
+    EDUOS_INTENT_ADVANCE    = 0,
+    EDUOS_INTENT_RE_EXPLAIN = 1,
+    EDUOS_INTENT_SKIP       = 2,
+    EDUOS_INTENT_DECLINE    = 3,
+    EDUOS_INTENT_UNKNOWN    = 4,
+} eduos_intent_t;
+
+/* Forward-declare opaque llama.cpp types — defined in llama.h at compile time */
+struct llama_model;
+struct llama_context;
+struct llama_sampler;
+
+/* Forward-declare opaque SQLite type — defined in sqlite3.h at compile time */
+struct sqlite3;
+
 typedef struct {
     char              session_id[64];
     eduos_age_mode_t  age_mode;
     eduos_ram_tier_t  ram_tier;
-    int               socket_fd;   /* Unix socket to engine.py — Phase 3 only */
-    void             *llm_ctx;     /* llama.cpp context — Phase 4, NULL for now */
+
+    /* Phase 3 socket bridge — only compiled when EDUOS_SOCKET_FALLBACK is set */
+    int               socket_fd;
+
+    /* Phase 4 — llama.cpp inference */
+    struct llama_model   *llm_model;
+    struct llama_context *llm_ctx;
+    struct llama_sampler *llm_sampler;
+    bool                  is_mobile;
+
+    /* Phase 4 — curriculum DB (opened once per session) */
+    struct sqlite3       *db;
+
+    /* Phase 4 — teaching state machine */
+    eduos_sequence_state_t current_state;
+    char                   current_question_id[64];
+    int                    step_index;
+    int                    total_steps;
 } eduos_session_t;
 
 typedef struct {
-    char                   *text;           /* heap-allocated, caller frees */
+    char                   *text;
     eduos_sequence_state_t  sequence_state;
     int                     step_index;
     char                    question_id[64];
     int                     can_skip;
-    char                   *error;          /* NULL on success, heap-allocated on error */
+    char                   *error;
 } eduos_response_t;
 
 #endif /* EDUOS_TYPES_H */

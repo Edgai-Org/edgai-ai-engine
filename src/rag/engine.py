@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 EduOS RAG Engine — Phase 2
 Production conversational RAG engine.
