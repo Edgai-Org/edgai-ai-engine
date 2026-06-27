@@ -6,76 +6,114 @@ The open source AI engine powering EduOS — an offline-first, AI-native educati
 
 ## What this is
 
-`eduos-ai-engine` is a lightweight RAG (Retrieval-Augmented Generation) engine that runs fully offline on low-spec hardware. It powers both the EduOS Linux desktop and the EduOS mobile app through a single C library (`libeduos`).
+`eduos-ai-engine` is a C library (`libeduos`) that delivers curriculum-driven AI tutoring entirely offline. It runs on school desktops, laptops, and Android devices with no internet connection and no cloud dependency. The engine selects a quantised GGUF model based on available RAM, retrieves curriculum content from a local SQLite FTS5 database, and walks each student through a structured teaching sequence in their age mode.
 
-**Phase 2 (current):** Python RAG engine with Unix socket interface  
-**Phase 3+:** C library (`libeduos`) with llama.cpp, whisper.cpp, Piper TTS
+Phase 4 is complete. The runtime is pure C — no Python, no Ollama.
 
 ## How it works
 
 ```
-Student question
-      ↓
-Preprocessing — stop words + Porter stemmer + synonym expansion
-      ↓
-FTS5 search — curriculum SQLite DB
-      ↓
-Rule-based intent detection
-      ↓
-Teaching sequence — HOOK → PREDICT → STEPS → VERIFY → PRACTICE → CLOSE
-      ↓
-LLM generation (Qwen 2.5 1.5B via Ollama) — only for concept explanation + rephrase
-      ↓
-Response to student
+Student input
+      │
+      ▼
+eduos_query()   ─── C API, single call per turn
+      │
+      ▼
+Keyword intent detection
+  ADVANCE / RE_EXPLAIN / SKIP / DECLINE / UNKNOWN
+      │
+      │  UNKNOWN ──► FTS5 retrieval (SQLite, Porter stemmer, synonym expansion)
+      │                   │
+      │               topic found ──► load question_id
+      │               not found   ──► "I don't know that topic yet"
+      │
+      ▼
+Teaching state machine
+  CONCEPT → HOOK → PREDICT → STEPS → VERIFY → PRACTICE → CLOSE → DONE
+      │
+      ├── CONCEPT ──► llama.cpp inference  (concept explanation)
+      ├── STEPS + RE_EXPLAIN ──► llama.cpp inference  (rephrase)
+      └── all other states ──► DB content served directly
+      │
+      ▼
+eduos_response_t  { text, sequence_state, step_index, question_id, error }
 ```
+
+The LLM is called for exactly two things: concept explanation at CONCEPT state, and rephrase at STEPS state when the student signals confusion. Everything else — hook, predict, steps, verify, practice — is served from the curriculum DB with zero inference cost.
 
 ## Hardware tiers
 
-| RAM | Model | Notes |
-|-----|-------|-------|
-| 2GB | Qwen 2.5 1.5B (~900MB Q4_K_M) | Handles most questions |
-| 4GB | Phi-3 Mini | Better reasoning |
-| 12GB+ (school server) | Llama 3 8B | Full conversational tutoring |
+### Desktop / OS (no Android overhead)
+
+| RAM | Model | Context | Notes |
+|-----|-------|---------|-------|
+| < 2 GB | Qwen 2.5 1.5B Q4_K_M | 512 | Minimum viable |
+| 2–4 GB | Phi-3 Mini Q4_K_M | 2048 | Most school hardware |
+| 4 GB+ | Llama 3 8B Q4_K_M | 4096 | School servers |
+
+### Mobile (Android/iOS — OS eats 2–4 GB)
+
+| Device RAM | Model | Context | Notes |
+|------------|-------|---------|-------|
+| 2 GB | Qwen 2.5 0.5B IQ4_XS | 512 | Only model that fits |
+| 4 GB | Qwen 2.5 1.5B Q4_K_M | 512 | Tight config |
+| 6 GB+ | Phi-3 Mini Q4_K_M | 2048 | Comfortable |
+
+KV cache is quantised (Q4_0 or Q8_0 depending on tier) with flash attention enabled. Tier selection is automatic via `/proc/meminfo` on Linux or `sysctl hw.memsize` on macOS/Android.
 
 ## Age modes
 
-- **Playground** — ages 3–10, simple warm language
-- **Explorer** — ages 10–15, step by step
-- **Launchpad** — ages 15–19, direct Nigerian classroom English, WAEC prep
-- **Professional** — 20+, concise and technical
+| Mode | Ages | Style |
+|------|------|-------|
+| **Playground** | 3–10 | Warm, simple language, short sentences |
+| **Explorer** | 10–15 | Step-by-step, encouraging |
+| **Launchpad** | 15–19 | Direct Nigerian classroom English, WAEC prep |
+| **Professional** | 20+ | Concise, technical, no hand-holding |
+
+Age mode is set at session init from a JSON profile or the `EDUOS_IS_MOBILE` environment variable. It shapes formatter truncation, LLM system prompt tone, and DB content depth.
 
 ## Quick start
 
-**Requirements:** Python 3.10+, [Ollama](https://ollama.com)
+**Requirements:** Git, CMake ≥ 3.16, C11 compiler, C++17 compiler, pkg-config, libsqlite3-dev, 2 GB RAM, 2 GB disk.
 
 ```bash
-# Clone
-git clone https://github.com/EduOS-Org/eduos-ai-engine.git
+# 1 — Clone with submodules (llama.cpp is pinned — do not update casually)
+git clone --recurse-submodules https://github.com/EduOS-Org/eduos-ai-engine.git
 cd eduos-ai-engine
 
-# Setup
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+# 2 — Download a GGUF model (example: 4 GB machine)
+pip install huggingface_hub[cli]
+huggingface-cli download bartowski/Qwen2.5-1.5B-Instruct-GGUF \
+    Qwen2.5-1.5B-Instruct-Q4_K_M.gguf --local-dir ~/.eduos/models/
+mv ~/.eduos/models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf \
+   ~/.eduos/models/qwen2.5-1.5b-instruct-q4_k_m.gguf
 
-# Pull model
-ollama pull qwen2.5:1.5b
+# 3 — Build (run from repo root — tests resolve demo DB by relative path)
+cmake -S . -B build
+cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 
-# Symlink your curriculum DB (or use demo)
-ln -s /path/to/eduos-curriculum/db ./db
+# 4 — Run tests
+ctest --test-dir build --output-on-failure
 
-# Start engine
-python3 src/rag/engine.py
-
-# Connect test client (separate terminal)
-python3 src/rag/client.py --age-mode launchpad
+# 5 — Chat
+./build/eduos-chat
 ```
 
-## Socket protocol
+Override the model without changing tier config:
 
-The engine runs as a persistent Unix socket server at `/tmp/eduos_rag.sock`.
+```bash
+EDUOS_MODEL_OVERRIDE=llama-3-8b-instruct-q4_k_m.gguf ./build/eduos-chat
+```
 
-**Input:**
+## Socket protocol (Phase 3 legacy / SOCKET_FALLBACK builds)
+
+`src/rag/engine.py` is frozen. It exists only for builds compiled with
+`-DEDUOS_SOCKET_FALLBACK=ON`. The default build uses llama.cpp directly.
+
+The protocol is preserved for reference and for systems that still use the
+Phase 3 bridge:
+
+**Input (newline-terminated JSON over Unix socket `/tmp/eduos_rag.sock`):**
 ```json
 {"session_id": "abc123", "text": "what is logarithm", "age_mode": "launchpad"}
 ```
@@ -84,10 +122,10 @@ The engine runs as a persistent Unix socket server at `/tmp/eduos_rag.sock`.
 ```json
 {
   "session_id": "abc123",
-  "text": "A logarithm is...",
+  "text": "A logarithm is the power to which a base must be raised...",
   "sequence_state": "CONCEPT",
   "step_index": 0,
-  "question_id": "waec-mathematics-2025-q75851",
+  "question_id": "demo-log-001",
   "can_skip": true,
   "error": null
 }
@@ -95,25 +133,29 @@ The engine runs as a persistent Unix socket server at `/tmp/eduos_rag.sock`.
 
 ## Curriculum DB
 
-The curriculum database is separate (private repo). The engine works with any SQLite DB following the schema in `db/schema.sql`.
+The production curriculum database is a private repo. The engine works with any
+SQLite database following the schema in `db/schema.sql`. A three-question demo
+database ships at `db/demo/demo_curriculum.db` (logarithms, quadratic equations,
+arithmetic progression) for development and CI.
 
-Demo DB ships in `db/demo/demo_curriculum.db`.
+Set `EDUOS_DB_PATH` to an absolute path to override the search order.
 
 ## Roadmap
 
-- [x] Phase 1 — Python RAG prototype (proven)
-- [x] Phase 2 — Production Python engine with socket server
-- [ ] Phase 3 — C libeduos scaffold + CMakeLists
-- [ ] Phase 4 — llama.cpp integration, drop Ollama dependency
-- [ ] Phase 5 — whisper.cpp (voice input) + Piper TTS (voice output)
-- [ ] Phase 6 — Android JNI bridge for React Native
-- [ ] Phase 7 — LoRA fine-tuning on WAEC curriculum data
+- [x] Phase 1 — Python RAG prototype (FTS5 + Ollama, proven architecture)
+- [x] Phase 2 — C scaffold: `libeduos`, CMakeLists, public API headers
+- [x] Phase 3 — C socket proxy: `libeduos` ↔ `engine.py` bridge, 8 tests passing
+- [x] Phase 4 — llama.cpp direct inference, full RAG in C, Ollama removed
+- [ ] Phase 5 — whisper.cpp voice input + Piper TTS voice output
+- [ ] Phase 6 — D-Bus signals, compositor integration, EduOS desktop shell
+- [ ] Phase 7 — Android JNI bridge, Debian OS image packaging
 
 ## License
 
 GPL v3 — see [LICENSE](LICENSE)
 
-The engine is open source. The curriculum database and fine-tuned model weights are proprietary.
+The engine is open source. The production curriculum database and any fine-tuned
+model weights are proprietary and not distributed here.
 
 ## Contributing
 
