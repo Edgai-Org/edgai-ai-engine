@@ -8,7 +8,11 @@
  *   ./edgai-chat
  *   EDGAI_MODELS_DIR=~/.edgai/models ./edgai-chat
  *
- * Type 'quit' or 'exit' to end the session.
+ * Special commands:
+ *   /voice     — toggle voice mode (listen + speak a full turn)
+ *   /voiceon   — enable voice for all subsequent turns
+ *   /voiceoff  — disable voice, revert to text input
+ *   quit / exit — end the session
  */
 
 #include <stdio.h>
@@ -55,6 +59,19 @@ static const char *age_mode_name(EdgaiAgeMode m)
     }
 }
 
+static void print_response(EdgaiResponse *resp)
+{
+    if (!resp) {
+        fprintf(stderr, "ERROR: NULL response\n");
+        return;
+    }
+    if (resp->error)
+        fprintf(stderr, "ERROR: %s\n", resp->error);
+    else
+        printf("[%s] %s\n", state_name(resp->sequence_state),
+               resp->text ? resp->text : "(no text)");
+}
+
 int main(void)
 {
     printf("edgai-chat — EduOS interactive session\n");
@@ -71,23 +88,43 @@ int main(void)
            ram_tier_name(session->ram_tier));
     printf("age_mode   : %d (%s)\n", (int)session->age_mode,
            age_mode_name(session->age_mode));
-    printf("model      : %s\n", session->llm_model ? "loaded" : "not loaded (LLM disabled)");
+    printf("model      : %s\n",
+           session->llm_model ? "loaded" : "not loaded (LLM disabled)");
+    printf("voice      : %s\n",
+           session->voice_enabled ? "enabled" : "disabled (model not found)");
     printf("---------------------------------------\n");
-    printf("Type 'quit' or 'exit' to end.\n\n");
+    printf("Type 'quit' or 'exit' to end.\n");
+    printf("Type '/voice' for one voice turn, '/voiceon' to stay in voice mode.\n\n");
 
     char line[LINE_MAX_LEN];
+    int  voice_mode = 0; /* 0 = text loop; 1 = every turn is a voice turn */
 
     for (;;) {
+        if (voice_mode) {
+            printf("[voice] Listening... (speak now)\n");
+            fflush(stdout);
+
+            EdgaiResponse *resp = edgai_voice_turn(session);
+            if (!resp) {
+                printf("[voice] No speech detected or voice unavailable.\n");
+            } else {
+                print_response(resp);
+                edgai_response_free(resp);
+            }
+            /* In voice_mode, loop back and listen again */
+            continue;
+        }
+
+        /* ── Text mode prompt ──────────────────────────────────────── */
         printf("> ");
         fflush(stdout);
 
         if (!fgets(line, sizeof(line), stdin)) {
-            /* EOF — Ctrl-D */
             printf("\n");
             break;
         }
 
-        /* Strip trailing newline (and any \r on Windows) */
+        /* Strip trailing newline */
         size_t len = strlen(line);
         while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r'))
             line[--len] = '\0';
@@ -97,19 +134,47 @@ int main(void)
         if (strcmp(line, "quit") == 0 || strcmp(line, "exit") == 0)
             break;
 
-        EdgaiResponse *resp = edgai_query(session, line);
-        if (!resp) {
-            fprintf(stderr, "ERROR: edgai_query() returned NULL\n");
+        /* ── Voice commands ─────────────────────────────────────────── */
+        if (strcmp(line, "/voice") == 0) {
+            if (!session->voice_enabled) {
+                printf("[voice] Voice unavailable — "
+                       "install Vosk and Piper models first.\n");
+                continue;
+            }
+            printf("[voice] Listening... (speak now)\n");
+            fflush(stdout);
+
+            EdgaiResponse *resp = edgai_voice_turn(session);
+            if (!resp)
+                printf("[voice] No speech detected.\n");
+            else {
+                print_response(resp);
+                edgai_response_free(resp);
+            }
             continue;
         }
 
-        if (resp->error) {
-            fprintf(stderr, "ERROR: %s\n", resp->error);
-        } else {
-            printf("[%s] %s\n", state_name(resp->sequence_state),
-                   resp->text ? resp->text : "(no text)");
+        if (strcmp(line, "/voiceon") == 0) {
+            if (!session->voice_enabled) {
+                printf("[voice] Voice unavailable — "
+                       "install Vosk and Piper models first.\n");
+                continue;
+            }
+            voice_mode = 1;
+            printf("[voice] Voice mode ON — speak each turn. "
+                   "Type /voiceoff in text mode to exit.\n");
+            continue;
         }
 
+        if (strcmp(line, "/voiceoff") == 0) {
+            voice_mode = 0;
+            printf("[voice] Voice mode OFF — back to text input.\n");
+            continue;
+        }
+
+        /* ── Normal text query ──────────────────────────────────────── */
+        EdgaiResponse *resp = edgai_query(session, line);
+        print_response(resp);
         edgai_response_free(resp);
     }
 
