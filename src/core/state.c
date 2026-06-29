@@ -13,11 +13,11 @@
 #include <string.h>
 
 #include <sqlite3.h>
-#include "eduos/eduos.h"
-#include "eduos/eduos_rag.h"
+#include "edgai/edgai.h"
+#include "edgai/edgai_rag.h"
 
 /* Forward declaration from preprocessor.c */
-char *eduos_preprocess_query(const char *raw_query);
+char *edgai_preprocess_query(const char *raw_query);
 
 /* ── State machine transitions ──────────────────────────────────────────── */
 
@@ -26,31 +26,31 @@ char *eduos_preprocess_query(const char *raw_query);
  * Mutates session->step_index when appropriate.
  * Returns the new state (also stored in session->current_state).
  */
-eduos_sequence_state_t eduos_state_next(eduos_session_t *session,
-                                         eduos_intent_t intent)
+EdgaiSequenceState edgai_state_next(EdgaiSession *session,
+                                         EdgaiIntent intent)
 {
-    eduos_sequence_state_t cur = session->current_state;
+    EdgaiSequenceState cur = session->current_state;
 
-    if (intent == EDUOS_INTENT_DECLINE) {
-        session->current_state = EDUOS_STATE_CLOSE;
-        return EDUOS_STATE_CLOSE;
+    if (intent == EDGAI_INTENT_DECLINE) {
+        session->current_state = EDGAI_STATE_CLOSE;
+        return EDGAI_STATE_CLOSE;
     }
 
-    if (intent == EDUOS_INTENT_UNKNOWN) {
+    if (intent == EDGAI_INTENT_UNKNOWN) {
         /* Stay in current state — ask for clarification */
         return cur;
     }
 
-    if (intent == EDUOS_INTENT_SKIP) {
+    if (intent == EDGAI_INTENT_SKIP) {
         /* Skip to next logical state */
         switch (cur) {
-        case EDUOS_STATE_CONCEPT:  session->current_state = EDUOS_STATE_STEPS;    break;
-        case EDUOS_STATE_HOOK:     session->current_state = EDUOS_STATE_STEPS;    break;
-        case EDUOS_STATE_PREDICT:  session->current_state = EDUOS_STATE_STEPS;    break;
-        case EDUOS_STATE_STEPS:    session->current_state = EDUOS_STATE_VERIFY;   break;
-        case EDUOS_STATE_VERIFY:   session->current_state = EDUOS_STATE_PRACTICE; break;
-        case EDUOS_STATE_PRACTICE: session->current_state = EDUOS_STATE_CLOSE;    break;
-        case EDUOS_STATE_CLOSE:    session->current_state = EDUOS_STATE_DONE;     break;
+        case EDGAI_STATE_CONCEPT:  session->current_state = EDGAI_STATE_STEPS;    break;
+        case EDGAI_STATE_HOOK:     session->current_state = EDGAI_STATE_STEPS;    break;
+        case EDGAI_STATE_PREDICT:  session->current_state = EDGAI_STATE_STEPS;    break;
+        case EDGAI_STATE_STEPS:    session->current_state = EDGAI_STATE_VERIFY;   break;
+        case EDGAI_STATE_VERIFY:   session->current_state = EDGAI_STATE_PRACTICE; break;
+        case EDGAI_STATE_PRACTICE: session->current_state = EDGAI_STATE_CLOSE;    break;
+        case EDGAI_STATE_CLOSE:    session->current_state = EDGAI_STATE_DONE;     break;
         default:                   break;
         }
         return session->current_state;
@@ -58,44 +58,44 @@ eduos_sequence_state_t eduos_state_next(eduos_session_t *session,
 
     /* ADVANCE and RE_EXPLAIN */
     switch (cur) {
-    case EDUOS_STATE_CONCEPT:
-        session->current_state = EDUOS_STATE_HOOK;
+    case EDGAI_STATE_CONCEPT:
+        session->current_state = EDGAI_STATE_HOOK;
         break;
 
-    case EDUOS_STATE_HOOK:
-        session->current_state = EDUOS_STATE_PREDICT;
+    case EDGAI_STATE_HOOK:
+        session->current_state = EDGAI_STATE_PREDICT;
         break;
 
-    case EDUOS_STATE_PREDICT:
-        session->current_state = EDUOS_STATE_STEPS;
+    case EDGAI_STATE_PREDICT:
+        session->current_state = EDGAI_STATE_STEPS;
         session->step_index    = 0;
         break;
 
-    case EDUOS_STATE_STEPS:
-        if (intent == EDUOS_INTENT_RE_EXPLAIN) {
+    case EDGAI_STATE_STEPS:
+        if (intent == EDGAI_INTENT_RE_EXPLAIN) {
             /* Stay in STEPS — caller will invoke LLM rephrase */
             break;
         }
         session->step_index++;
         if (session->step_index >= session->total_steps) {
-            session->current_state = EDUOS_STATE_VERIFY;
+            session->current_state = EDGAI_STATE_VERIFY;
         }
         /* else: stay STEPS, next step_index will be served */
         break;
 
-    case EDUOS_STATE_VERIFY:
-        session->current_state = EDUOS_STATE_PRACTICE;
+    case EDGAI_STATE_VERIFY:
+        session->current_state = EDGAI_STATE_PRACTICE;
         break;
 
-    case EDUOS_STATE_PRACTICE:
-        session->current_state = EDUOS_STATE_CLOSE;
+    case EDGAI_STATE_PRACTICE:
+        session->current_state = EDGAI_STATE_CLOSE;
         break;
 
-    case EDUOS_STATE_CLOSE:
-        session->current_state = EDUOS_STATE_DONE;
+    case EDGAI_STATE_CLOSE:
+        session->current_state = EDGAI_STATE_DONE;
         break;
 
-    case EDUOS_STATE_DONE:
+    case EDGAI_STATE_DONE:
         /* Terminal — no transition */
         break;
     }
@@ -194,19 +194,19 @@ static int json_array_count(const char *json)
 /*
  * Get the DB-driven response content for the session's current state.
  * For CONCEPT state, returns the question_text so the caller can pass it to
- * eduos_llm_explain_concept(). All other states return DB content directly.
+ * edgai_llm_explain_concept(). All other states return DB content directly.
  *
  * Returns heap-allocated string. Caller must free. NULL on DB error.
  */
-char *eduos_state_get_db_content(eduos_session_t *session, sqlite3 *db)
+char *edgai_state_get_db_content(EdgaiSession *session, sqlite3 *db)
 {
     if (!session || !db || session->current_question_id[0] == '\0')
         return NULL;
 
     /* Fixed strings for terminal states */
-    if (session->current_state == EDUOS_STATE_CLOSE)
+    if (session->current_state == EDGAI_STATE_CLOSE)
         return strdup("Great work. Ready for the next question?");
-    if (session->current_state == EDUOS_STATE_DONE)
+    if (session->current_state == EDGAI_STATE_DONE)
         return strdup("Session complete.");
 
     /* Fetch row for the current question */
@@ -214,12 +214,12 @@ char *eduos_state_get_db_content(eduos_session_t *session, sqlite3 *db)
         "SELECT question_text, hook, predict, steps, how_to_ace "
         "FROM questions WHERE id = ? LIMIT 1;";
 
-    fprintf(stderr, "eduos: DB lookup — sql='%s' question_id='%s' state=%d\n",
+    fprintf(stderr, "edgai: DB lookup — sql='%s' question_id='%s' state=%d\n",
             sql, session->current_question_id, (int)session->current_state);
 
     sqlite3_stmt *stmt = NULL;
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
-        fprintf(stderr, "eduos: DB prepare failed: %s\n", sqlite3_errmsg(db));
+        fprintf(stderr, "edgai: DB prepare failed: %s\n", sqlite3_errmsg(db));
         return NULL;
     }
 
@@ -234,20 +234,20 @@ char *eduos_state_get_db_content(eduos_session_t *session, sqlite3 *db)
         const unsigned char *how_to_ace    = sqlite3_column_text(stmt, 4);
 
         switch (session->current_state) {
-        case EDUOS_STATE_CONCEPT:
-            /* Return question_text — caller passes this to eduos_llm_explain_concept() */
+        case EDGAI_STATE_CONCEPT:
+            /* Return question_text — caller passes this to edgai_llm_explain_concept() */
             result = question_text ? strdup((const char *)question_text) : NULL;
             break;
 
-        case EDUOS_STATE_HOOK:
+        case EDGAI_STATE_HOOK:
             result = hook ? strdup((const char *)hook) : NULL;
             break;
 
-        case EDUOS_STATE_PREDICT:
+        case EDGAI_STATE_PREDICT:
             result = predict ? strdup((const char *)predict) : NULL;
             break;
 
-        case EDUOS_STATE_STEPS: {
+        case EDGAI_STATE_STEPS: {
             const char *sj = steps_json ? (const char *)steps_json : NULL;
             if (session->total_steps == 0 && sj)
                 session->total_steps = json_array_count(sj);
@@ -255,7 +255,7 @@ char *eduos_state_get_db_content(eduos_session_t *session, sqlite3 *db)
             break;
         }
 
-        case EDUOS_STATE_VERIFY: {
+        case EDGAI_STATE_VERIFY: {
             if (question_text) {
                 char buf[1024];
                 snprintf(buf, sizeof(buf),
@@ -266,7 +266,7 @@ char *eduos_state_get_db_content(eduos_session_t *session, sqlite3 *db)
             break;
         }
 
-        case EDUOS_STATE_PRACTICE:
+        case EDGAI_STATE_PRACTICE:
             result = how_to_ace ? strdup((const char *)how_to_ace) : NULL;
             break;
 
@@ -274,7 +274,7 @@ char *eduos_state_get_db_content(eduos_session_t *session, sqlite3 *db)
             break;
         }
     } else {
-        fprintf(stderr, "eduos: DB lookup returned no row — question_id='%s' errmsg='%s'\n",
+        fprintf(stderr, "edgai: DB lookup returned no row — question_id='%s' errmsg='%s'\n",
                 session->current_question_id, sqlite3_errmsg(db));
     }
 
@@ -288,7 +288,7 @@ char *eduos_state_get_db_content(eduos_session_t *session, sqlite3 *db)
  * Detect if the student's message contains 2+ curriculum keywords via FTS5.
  * Returns 1 if 2+ words individually hit the FTS5 index, 0 otherwise.
  */
-int eduos_state_is_new_topic(const char *student_message, sqlite3 *db)
+int edgai_state_is_new_topic(const char *student_message, sqlite3 *db)
 {
     if (!student_message || !db)
         return 0;

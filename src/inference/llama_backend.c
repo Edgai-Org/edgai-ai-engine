@@ -14,8 +14,8 @@
 #include <string.h>
 
 #include "llama.h"
-#include "eduos/eduos.h"
-#include "eduos_tier.h"
+#include "edgai/edgai.h"
+#include "edgai_tier.h"
 
 #define MODEL_NOT_LOADED_MSG "Model not loaded. Please download the model file."
 
@@ -63,7 +63,7 @@ static void strip_output(char *text)
  * Clears memory (KV cache) before each call — fully stateless per inference.
  * Returns heap-allocated output string. Caller must free. NULL on error.
  */
-static char *eduos_llm_infer(eduos_session_t *session,
+static char *edgai_llm_infer(EdgaiSession *session,
                               const char *prompt,
                               int max_output_tokens)
 {
@@ -144,7 +144,7 @@ static char *eduos_llm_infer(eduos_session_t *session,
  * Fires at CONCEPT state. Prompt ≤ 300 input tokens.
  * No conversation history. No few-shot examples.
  */
-char *eduos_llm_explain_concept(eduos_session_t *session,
+char *edgai_llm_explain_concept(EdgaiSession *session,
                                 const char *question_text)
 {
     if (!session->llm_model)
@@ -158,7 +158,7 @@ char *eduos_llm_explain_concept(eduos_session_t *session,
     const char *mode = age_label[(int)session->age_mode];
 
     long long ram_kb = 4LL * 1024 * 1024;
-    const eduos_tier_config_t *tier = eduos_tier_select(ram_kb, session->is_mobile);
+    const EdgaiTierConfig *tier = edgai_tier_select(ram_kb, session->is_mobile);
     int max_tok = tier->max_output_tokens > 512 ? 512 : tier->max_output_tokens;
 
     char prompt[2048];
@@ -178,7 +178,7 @@ char *eduos_llm_explain_concept(eduos_session_t *session,
         mode, question_text
     );
 
-    return eduos_llm_infer(session, prompt, max_tok);
+    return edgai_llm_infer(session, prompt, max_tok);
 }
 
 /*
@@ -186,7 +186,7 @@ char *eduos_llm_explain_concept(eduos_session_t *session,
  * Fires at STEPS state when RE_EXPLAIN intent detected.
  * max_output_tokens hard-capped at 150.
  */
-char *eduos_llm_rephrase(eduos_session_t *session,
+char *edgai_llm_rephrase(EdgaiSession *session,
                           const char *previous_explanation,
                           const char *student_message)
 {
@@ -218,6 +218,6 @@ char *eduos_llm_rephrase(eduos_session_t *session,
         mode, previous_explanation, student_message
     );
 
-    return eduos_llm_infer(session, prompt, 150);
+    return edgai_llm_infer(session, prompt, 150);
 }
 

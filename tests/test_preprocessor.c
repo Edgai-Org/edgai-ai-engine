@@ -9,18 +9,18 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
-#include "eduos/eduos_types.h"
+#include "edgai/edgai_types.h"
 
 /* Forward declarations */
-char *eduos_preprocess_query(const char *raw_query);
-int   eduos_porter_stem(char *word, int len);
+char *edgai_preprocess_query(const char *raw_query);
+int   edgai_porter_stem(char *word, int len);
 
 static void check_stem(const char *word, const char *expected)
 {
     char buf[256];
     strncpy(buf, word, sizeof(buf) - 1);
     buf[sizeof(buf) - 1] = '\0';
-    int len = eduos_porter_stem(buf, (int)strlen(buf));
+    int len = edgai_porter_stem(buf, (int)strlen(buf));
     buf[len] = '\0';
     int ok = strcmp(buf, expected) == 0;
     printf("  stem('%-16s') = '%-14s' expected '%-14s' %s\n",
@@ -29,7 +29,7 @@ static void check_stem(const char *word, const char *expected)
 
 static void check_preprocess(const char *input, const char *expected_substr)
 {
-    char *out = eduos_preprocess_query(input);
+    char *out = edgai_preprocess_query(input);
     int found = (!expected_substr) || (out && strstr(out, expected_substr));
     printf("  preprocess('%-30s') → '%-30s' %s\n",
            input, out ? out : "(null)", found ? "OK" : "MISSING SUBSTR");

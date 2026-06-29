@@ -3,10 +3,10 @@
  * Copyright (C) 2024 EduOS-Org
  */
 
-#ifndef EDUOS_RAG_H
-#define EDUOS_RAG_H
+#ifndef EDGAI_RAG_H
+#define EDGAI_RAG_H
 
-#include "eduos_types.h"
+#include "edgai_types.h"
 
 struct sqlite3;
 
@@ -18,22 +18,22 @@ typedef struct {
     char  *steps_json;      /* heap-allocated — raw JSON array string */
     char  *how_to_ace;      /* heap-allocated */
     float  score;
-} eduos_rag_result_t;
+} EdgaiRagResult;
 
 /*
  * Search the curriculum DB via FTS5.
  * Preprocesses raw_query before searching.
  * Returns array of top_k results; *out_count set to actual count.
- * Caller frees with eduos_rag_results_free().
+ * Caller frees with edgai_rag_results_free().
  */
-eduos_rag_result_t *eduos_rag_retrieve(
+EdgaiRagResult *edgai_rag_retrieve(
     struct sqlite3   *db,
     const char       *raw_query,
-    eduos_age_mode_t  mode,
+    EdgaiAgeMode  mode,
     int               top_k,
     int              *out_count
 );
 
-void eduos_rag_results_free(eduos_rag_result_t *results, int count);
+void edgai_rag_results_free(EdgaiRagResult *results, int count);
 
-#endif /* EDUOS_RAG_H */
+#endif /* EDGAI_RAG_H */

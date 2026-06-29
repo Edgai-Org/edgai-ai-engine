@@ -6,7 +6,7 @@ The open source AI engine powering EduOS — an offline-first, AI-native educati
 
 ## What this is
 
-`eduos-ai-engine` is a C library (`libeduos`) that delivers curriculum-driven AI tutoring entirely offline. It runs on school desktops, laptops, and Android devices with no internet connection and no cloud dependency. The engine selects a quantised GGUF model based on available RAM, retrieves curriculum content from a local SQLite FTS5 database, and walks each student through a structured teaching sequence in their age mode.
+`eduos-ai-engine` is a C library (`libedgai`) that delivers curriculum-driven AI tutoring entirely offline. It runs on school desktops, laptops, and Android devices with no internet connection and no cloud dependency. The engine selects a quantised GGUF model based on available RAM, retrieves curriculum content from a local SQLite FTS5 database, and walks each student through a structured teaching sequence in their age mode.
 
 Phase 4 is complete. The runtime is pure C — no Python, no Ollama.
 
@@ -16,7 +16,7 @@ Phase 4 is complete. The runtime is pure C — no Python, no Ollama.
 Student input
       │
       ▼
-eduos_query()   ─── C API, single call per turn
+edgai_query()   ─── C API, single call per turn
       │
       ▼
 Keyword intent detection
@@ -36,7 +36,7 @@ Teaching state machine
       └── all other states ──► DB content served directly
       │
       ▼
-eduos_response_t  { text, sequence_state, step_index, question_id, error }
+EdgaiResponse  { text, sequence_state, step_index, question_id, error }
 ```
 
 The LLM is called for exactly two things: concept explanation at CONCEPT state, and rephrase at STEPS state when the student signals confusion. Everything else — hook, predict, steps, verify, practice — is served from the curriculum DB with zero inference cost.
@@ -70,7 +70,7 @@ KV cache is quantised (Q4_0 or Q8_0 depending on tier) with flash attention enab
 | **Launchpad** | 15–19 | Direct Nigerian classroom English, WAEC prep |
 | **Professional** | 20+ | Concise, technical, no hand-holding |
 
-Age mode is set at session init from a JSON profile or the `EDUOS_IS_MOBILE` environment variable. It shapes formatter truncation, LLM system prompt tone, and DB content depth.
+Age mode is set at session init from a JSON profile or the `EDGAI_IS_MOBILE` environment variable. It shapes formatter truncation, LLM system prompt tone, and DB content depth.
 
 ## Quick start
 
@@ -84,9 +84,9 @@ cd eduos-ai-engine
 # 2 — Download a GGUF model (example: 4 GB machine)
 pip install huggingface_hub[cli]
 huggingface-cli download bartowski/Qwen2.5-1.5B-Instruct-GGUF \
-    Qwen2.5-1.5B-Instruct-Q4_K_M.gguf --local-dir ~/.eduos/models/
-mv ~/.eduos/models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf \
-   ~/.eduos/models/qwen2.5-1.5b-instruct-q4_k_m.gguf
+    Qwen2.5-1.5B-Instruct-Q4_K_M.gguf --local-dir ~/.edgai/models/
+mv ~/.edgai/models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf \
+   ~/.edgai/models/qwen2.5-1.5b-instruct-q4_k_m.gguf
 
 # 3 — Build (run from repo root — tests resolve demo DB by relative path)
 cmake -S . -B build
@@ -96,24 +96,24 @@ cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 ctest --test-dir build --output-on-failure
 
 # 5 — Chat
-./build/eduos-chat
+./build/edgai-chat
 ```
 
 Override the model without changing tier config:
 
 ```bash
-EDUOS_MODEL_OVERRIDE=llama-3-8b-instruct-q4_k_m.gguf ./build/eduos-chat
+EDGAI_MODEL_OVERRIDE=llama-3-8b-instruct-q4_k_m.gguf ./build/edgai-chat
 ```
 
 ## Socket protocol (Phase 3 legacy / SOCKET_FALLBACK builds)
 
 `src/rag/engine.py` is frozen. It exists only for builds compiled with
-`-DEDUOS_SOCKET_FALLBACK=ON`. The default build uses llama.cpp directly.
+`-DEDGAI_SOCKET_FALLBACK=ON`. The default build uses llama.cpp directly.
 
 The protocol is preserved for reference and for systems that still use the
 Phase 3 bridge:
 
-**Input (newline-terminated JSON over Unix socket `/tmp/eduos_rag.sock`):**
+**Input (newline-terminated JSON over Unix socket `/tmp/edgai_rag.sock`):**
 ```json
 {"session_id": "abc123", "text": "what is logarithm", "age_mode": "launchpad"}
 ```
@@ -138,13 +138,13 @@ SQLite database following the schema in `db/schema.sql`. A three-question demo
 database ships at `db/demo/demo_curriculum.db` (logarithms, quadratic equations,
 arithmetic progression) for development and CI.
 
-Set `EDUOS_DB_PATH` to an absolute path to override the search order.
+Set `EDGAI_DB_PATH` to an absolute path to override the search order.
 
 ## Roadmap
 
 - [x] Phase 1 — Python RAG prototype (FTS5 + Ollama, proven architecture)
-- [x] Phase 2 — C scaffold: `libeduos`, CMakeLists, public API headers
-- [x] Phase 3 — C socket proxy: `libeduos` ↔ `engine.py` bridge, 8 tests passing
+- [x] Phase 2 — C scaffold: `libedgai`, CMakeLists, public API headers
+- [x] Phase 3 — C socket proxy: `libedgai` ↔ `engine.py` bridge, 8 tests passing
 - [x] Phase 4 — llama.cpp direct inference, full RAG in C, Ollama removed
 - [ ] Phase 5 — whisper.cpp voice input + Piper TTS voice output
 - [ ] Phase 6 — D-Bus signals, compositor integration, EduOS desktop shell

@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2024 EduOS-Org
  *
- * profile.c — reads per-user profile JSON from /etc/eduos/profiles/.
+ * profile.c — reads per-user profile JSON from /etc/edgai/profiles/.
  * Updated in Phase 4 to also read the is_mobile flag.
  */
 
@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "eduos/eduos_types.h"
+#include "edgai/edgai_types.h"
 
 /* Extract a JSON integer value for the given key */
 static long json_int(const char *buf, const char *key, long default_val)
@@ -66,29 +66,29 @@ static char *load_file(const char *path)
     return buf;
 }
 
-eduos_age_mode_t eduos_profile_read_age_mode(const char *profile_path)
+EdgaiAgeMode edgai_profile_read_age_mode(const char *profile_path)
 {
-    if (!profile_path) return EDUOS_MODE_LAUNCHPAD;
+    if (!profile_path) return EDGAI_MODE_LAUNCHPAD;
 
     char *buf = load_file(profile_path);
-    if (!buf) return EDUOS_MODE_LAUNCHPAD;
+    if (!buf) return EDGAI_MODE_LAUNCHPAD;
 
-    long val = json_int(buf, "age_mode", (long)EDUOS_MODE_LAUNCHPAD);
+    long val = json_int(buf, "age_mode", (long)EDGAI_MODE_LAUNCHPAD);
     free(buf);
 
     if (val >= 0 && val <= 3)
-        return (eduos_age_mode_t)val;
-    return EDUOS_MODE_LAUNCHPAD;
+        return (EdgaiAgeMode)val;
+    return EDGAI_MODE_LAUNCHPAD;
 }
 
 /*
  * Read is_mobile from profile JSON.
- * Also checks EDUOS_IS_MOBILE=1 env var as override.
+ * Also checks EDGAI_IS_MOBILE=1 env var as override.
  * Returns 1 if mobile, 0 for desktop OS.
  */
-int eduos_profile_read_is_mobile(const char *profile_path)
+int edgai_profile_read_is_mobile(const char *profile_path)
 {
-    const char *env = getenv("EDUOS_IS_MOBILE");
+    const char *env = getenv("EDGAI_IS_MOBILE");
     if (env && strcmp(env, "1") == 0) return 1;
 
     if (!profile_path) return 0;

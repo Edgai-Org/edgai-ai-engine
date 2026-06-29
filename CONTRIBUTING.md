@@ -23,7 +23,7 @@ for every decision you make here.
 **OS for EduOS OS builds:** Debian bookworm only. Ubuntu is NOT supported — glibc
 and library version mismatches cause silent runtime failures on target hardware.
 
-Development on macOS is fine for the C library (libeduos). For packaging EduOS as
+Development on macOS is fine for the C library (libedgai). For packaging EduOS as
 an OS image, use Debian bookworm.
 
 ---
@@ -55,15 +55,15 @@ for a 4 GB development machine is Qwen2.5-1.5B-Instruct Q4_K_M.
 pip install huggingface_hub[cli]
 huggingface-cli download bartowski/Qwen2.5-1.5B-Instruct-GGUF \
     Qwen2.5-1.5B-Instruct-Q4_K_M.gguf \
-    --local-dir ~/.eduos/models/
-mv ~/.eduos/models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf \
-   ~/.eduos/models/qwen2.5-1.5b-instruct-q4_k_m.gguf
+    --local-dir ~/.edgai/models/
+mv ~/.edgai/models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf \
+   ~/.edgai/models/qwen2.5-1.5b-instruct-q4_k_m.gguf
 ```
 
 The engine searches for models in this order:
-1. `$EDUOS_MODELS_DIR`
-2. `/usr/share/eduos/models/`
-3. `~/.eduos/models/`
+1. `$EDGAI_MODELS_DIR`
+2. `/usr/share/edgai/models/`
+3. `~/.edgai/models/`
 
 Tests that require a model skip gracefully if none is found.
 
@@ -89,7 +89,7 @@ cd build && ctest --output-on-failure
 
 | Option | Default | Description |
 |---|---|---|
-| `EDUOS_SOCKET_FALLBACK` | `OFF` | Use Phase 3 engine.py socket proxy instead of llama.cpp. Emergency fallback only. Enable with `-DEDUOS_SOCKET_FALLBACK=ON`. |
+| `EDGAI_SOCKET_FALLBACK` | `OFF` | Use Phase 3 engine.py socket proxy instead of llama.cpp. Emergency fallback only. Enable with `-DEDGAI_SOCKET_FALLBACK=ON`. |
 
 ---
 
@@ -115,9 +115,9 @@ on stdout.
 
 | Variable | Example | Effect |
 |---|---|---|
-| `EDUOS_MODELS_DIR` | `/home/user/.eduos/models` | First search path for GGUF files |
-| `EDUOS_DB_PATH` | `/path/to/curriculum.db` | Overrides all built-in DB search paths |
-| `EDUOS_IS_MOBILE` | `1` | Forces mobile RAM tier (lower context size) |
+| `EDGAI_MODELS_DIR` | `/home/user/.edgai/models` | First search path for GGUF files |
+| `EDGAI_DB_PATH` | `/path/to/curriculum.db` | Overrides all built-in DB search paths |
+| `EDGAI_IS_MOBILE` | `1` | Forces mobile RAM tier (lower context size) |
 | `GGML_METAL` | `0` | Disable Metal GPU on macOS (CPU only) |
 
 ---
@@ -125,14 +125,14 @@ on stdout.
 ## engine.py — frozen
 
 `src/rag/engine.py` is the Phase 3 Python socket proxy. It is **frozen**. Do not
-modify it. It exists only as a fallback for `EDUOS_SOCKET_FALLBACK=ON` builds.
+modify it. It exists only as a fallback for `EDGAI_SOCKET_FALLBACK=ON` builds.
 All active development happens in the C inference stack.
 
 To run the socket fallback:
 
 ```bash
 python3 src/rag/engine.py &
-cmake -S . -B build -DEDUOS_SOCKET_FALLBACK=ON
+cmake -S . -B build -DEDGAI_SOCKET_FALLBACK=ON
 cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 ```
 
@@ -142,10 +142,10 @@ cmake --build build -j$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 
 ```
 eduos-ai-engine/
-├── include/eduos/          public API headers
-│   ├── eduos.h             main session/query types
-│   ├── eduos_rag.h         RAG result types + retrieve API
-│   └── eduos_types.h       enums, session struct
+├── include/edgai/          public API headers
+│   ├── edgai.h             main session/query types
+│   ├── edgai_rag.h         RAG result types + retrieve API
+│   └── edgai_types.h       enums, session struct
 ├── src/
 │   ├── core/               session init, query dispatch, state machine
 │   ├── inference/          llama.cpp tier selection, model loader, backend
@@ -169,11 +169,26 @@ eduos-ai-engine/
 |---|---|---|
 | 1 | Python RAG prototype (`engine.py` + SQLite FTS5) | done |
 | 2 | C scaffold — headers, CMakeLists, folder structure | done |
-| 3 | libeduos socket proxy — C library talks to engine.py | done |
+| 3 | libedgai socket proxy — C library talks to engine.py | done |
 | 4 | Direct llama.cpp inference — replaces socket proxy | **done** |
 | 5 | Voice — TTS (speak.c) + STT (transcribe.c) | stubs only |
 | 6 | D-Bus signals — OS integration (signals.c) | stub only |
 | 7 | Android JNI + Debian OS image packaging | stub only |
+
+---
+
+## Naming conventions
+
+All code in this repo follows these conventions:
+
+- **Functions:** `edgai_module_verb()` — e.g. `edgai_speak_init()`, `edgai_vad_process()`
+- **Constants:** `EDGAI_UPPER_SNAKE_CASE`
+- **Types:** `EdgaiPascalCase`
+- **Local variables:** `lower_snake_case`
+
+The library was previously named `libeduos`. All `eduos_` function prefixes and
+`EDUOS_` macro prefixes are now `edgai_` and `EDGAI_` respectively. Any contributor
+examples or documentation using the old prefix should be updated.
 
 ---
 

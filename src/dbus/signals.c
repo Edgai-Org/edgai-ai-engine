@@ -1,5 +1,5 @@
 /*
- * signals.c — EduOS libeduos
+ * signals.c — EduOS libedgai
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2024 EduOS-Org
  *
@@ -7,11 +7,11 @@
  * Session age_mode update is live in all phases.
  */
 
-#include "eduos/eduos.h"
+#include "edgai/edgai.h"
 
-void eduos_set_mode(eduos_session_t *session, eduos_age_mode_t mode)
+void edgai_set_mode(EdgaiSession *session, EdgaiAgeMode mode)
 {
     if (!session) return;
     session->age_mode = mode;
-    /* TODO Phase 6: fire org.eduos.AgeModeChanged D-Bus signal to compositor */
+    /* TODO Phase 6: fire org.edgai.AgeModeChanged D-Bus signal to compositor */
 }

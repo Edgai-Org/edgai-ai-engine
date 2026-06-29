@@ -2,20 +2,20 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2024 EduOS-Org
  *
- * test_session.c — Phase 4: test eduos_init() and eduos_destroy().
+ * test_session.c — Phase 4: test edgai_init() and edgai_destroy().
  * Verifies new session fields; does not require a model file.
  */
 
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
-#include "eduos/eduos.h"
+#include "edgai/edgai.h"
 
 int main(void)
 {
-    printf("test_session: testing eduos_init and eduos_destroy\n");
+    printf("test_session: testing edgai_init and edgai_destroy\n");
 
-    eduos_session_t *session = eduos_init(NULL);
+    EdgaiSession *session = edgai_init(NULL);
     assert(session != NULL);
 
     printf("  session_id:     %s\n", session->session_id);
@@ -28,10 +28,10 @@ int main(void)
     printf("  db:             %s\n", session->db       ? "open"   : "NULL (no demo DB in path — OK)");
 
     assert(session->session_id[0] != '\0');
-    assert(session->current_state == EDUOS_STATE_CONCEPT);
+    assert(session->current_state == EDGAI_STATE_CONCEPT);
     assert(session->step_index == 0);
 
-    eduos_destroy(session);
+    edgai_destroy(session);
     printf("test_session: PASS\n");
     return 0;
 }

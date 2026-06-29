@@ -3,44 +3,44 @@
  * Copyright (C) 2024 EduOS-Org
  */
 
-#ifndef EDUOS_TYPES_H
-#define EDUOS_TYPES_H
+#ifndef EDGAI_TYPES_H
+#define EDGAI_TYPES_H
 
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 
 typedef enum {
-    EDUOS_MODE_PLAYGROUND   = 0,  /* ages 3–10  */
-    EDUOS_MODE_EXPLORER     = 1,  /* ages 10–15 */
-    EDUOS_MODE_LAUNCHPAD    = 2,  /* ages 15–19 */
-    EDUOS_MODE_PROFESSIONAL = 3   /* ages 20+   */
-} eduos_age_mode_t;
+    EDGAI_MODE_PLAYGROUND   = 0,  /* ages 3–10  */
+    EDGAI_MODE_EXPLORER     = 1,  /* ages 10–15 */
+    EDGAI_MODE_LAUNCHPAD    = 2,  /* ages 15–19 */
+    EDGAI_MODE_PROFESSIONAL = 3   /* ages 20+   */
+} EdgaiAgeMode;
 
 typedef enum {
-    EDUOS_RAM_TIER_LOW  = 0,  /* <2 GB — Qwen 1.5B    */
-    EDUOS_RAM_TIER_MID  = 1,  /* <4 GB — Phi-3 Mini   */
-    EDUOS_RAM_TIER_HIGH = 2   /* 4 GB+ — Llama 3 8B   */
-} eduos_ram_tier_t;
+    EDGAI_RAM_TIER_LOW  = 0,  /* <2 GB — Qwen 1.5B    */
+    EDGAI_RAM_TIER_MID  = 1,  /* <4 GB — Phi-3 Mini   */
+    EDGAI_RAM_TIER_HIGH = 2   /* 4 GB+ — Llama 3 8B   */
+} EdgaiRamTier;
 
 typedef enum {
-    EDUOS_STATE_CONCEPT  = 0,
-    EDUOS_STATE_HOOK     = 1,
-    EDUOS_STATE_PREDICT  = 2,
-    EDUOS_STATE_STEPS    = 3,
-    EDUOS_STATE_VERIFY   = 4,
-    EDUOS_STATE_PRACTICE = 5,
-    EDUOS_STATE_CLOSE    = 6,
-    EDUOS_STATE_DONE     = 7
-} eduos_sequence_state_t;
+    EDGAI_STATE_CONCEPT  = 0,
+    EDGAI_STATE_HOOK     = 1,
+    EDGAI_STATE_PREDICT  = 2,
+    EDGAI_STATE_STEPS    = 3,
+    EDGAI_STATE_VERIFY   = 4,
+    EDGAI_STATE_PRACTICE = 5,
+    EDGAI_STATE_CLOSE    = 6,
+    EDGAI_STATE_DONE     = 7
+} EdgaiSequenceState;
 
 typedef enum {
-    EDUOS_INTENT_ADVANCE    = 0,
-    EDUOS_INTENT_RE_EXPLAIN = 1,
-    EDUOS_INTENT_SKIP       = 2,
-    EDUOS_INTENT_DECLINE    = 3,
-    EDUOS_INTENT_UNKNOWN    = 4,
-} eduos_intent_t;
+    EDGAI_INTENT_ADVANCE    = 0,
+    EDGAI_INTENT_RE_EXPLAIN = 1,
+    EDGAI_INTENT_SKIP       = 2,
+    EDGAI_INTENT_DECLINE    = 3,
+    EDGAI_INTENT_UNKNOWN    = 4,
+} EdgaiIntent;
 
 /* Forward-declare opaque llama.cpp types — defined in llama.h at compile time */
 struct llama_model;
@@ -52,10 +52,10 @@ struct sqlite3;
 
 typedef struct {
     char              session_id[64];
-    eduos_age_mode_t  age_mode;
-    eduos_ram_tier_t  ram_tier;
+    EdgaiAgeMode  age_mode;
+    EdgaiRamTier  ram_tier;
 
-    /* Phase 3 socket bridge — only compiled when EDUOS_SOCKET_FALLBACK is set */
+    /* Phase 3 socket bridge — only compiled when EDGAI_SOCKET_FALLBACK is set */
     int               socket_fd;
 
     /* Phase 4 — llama.cpp inference */
@@ -68,19 +68,19 @@ typedef struct {
     struct sqlite3       *db;
 
     /* Phase 4 — teaching state machine */
-    eduos_sequence_state_t current_state;
+    EdgaiSequenceState current_state;
     char                   current_question_id[64];
     int                    step_index;
     int                    total_steps;
-} eduos_session_t;
+} EdgaiSession;
 
 typedef struct {
     char                   *text;
-    eduos_sequence_state_t  sequence_state;
+    EdgaiSequenceState  sequence_state;
     int                     step_index;
     char                    question_id[64];
     int                     can_skip;
     char                   *error;
-} eduos_response_t;
+} EdgaiResponse;
 
-#endif /* EDUOS_TYPES_H */
+#endif /* EDGAI_TYPES_H */

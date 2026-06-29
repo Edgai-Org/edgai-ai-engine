@@ -6,8 +6,8 @@
  * Defines the tier config struct and selector used by session.c, llama_backend.c.
  */
 
-#ifndef EDUOS_TIER_H
-#define EDUOS_TIER_H
+#ifndef EDGAI_TIER_H
+#define EDGAI_TIER_H
 
 #include <stdbool.h>
 
@@ -25,12 +25,12 @@ typedef struct {
     enum ggml_type type_k;           /* KV key cache quantization     */
     enum ggml_type type_v;           /* KV value cache quantization   */
     int            max_output_tokens;
-} eduos_tier_config_t;
+} EdgaiTierConfig;
 
 /*
  * Select the appropriate tier config based on detected RAM and platform.
  * Returns a pointer to a static (never NULL) config entry.
  */
-const eduos_tier_config_t *eduos_tier_select(long long ram_kb, bool is_mobile);
+const EdgaiTierConfig *edgai_tier_select(long long ram_kb, bool is_mobile);
 
-#endif /* EDUOS_TIER_H */
+#endif /* EDGAI_TIER_H */
