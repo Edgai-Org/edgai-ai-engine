@@ -42,6 +42,23 @@ typedef enum {
     EDGAI_INTENT_UNKNOWN    = 4,
 } EdgaiIntent;
 
+/* ── Return codes ────────────────────────────────────────────────────────── */
+
+#define EDGAI_OK                       0
+#define EDGAI_ERR_AUDIO_BUSY          -1   /* ALSA device held by another process */
+#define EDGAI_ERR_VOICE_UNAVAILABLE   -2   /* model missing or voice disabled     */
+#define EDGAI_ERR_OOM                 -3   /* out of memory                       */
+#define EDGAI_ERR_INTERNAL            -4   /* unexpected internal failure         */
+
+/* Phase 5 — voice mode state machine */
+typedef enum {
+    EDGAI_VOICE_STATE_IDLE        = 0,
+    EDGAI_VOICE_STATE_LISTENING   = 1,  /* Vosk loaded, capturing */
+    EDGAI_VOICE_STATE_TRANSCRIBED = 2,  /* Vosk freed, text ready */
+    EDGAI_VOICE_STATE_GENERATING  = 3,  /* LLM loaded, generating */
+    EDGAI_VOICE_STATE_SPEAKING    = 4,  /* LLM freed, Piper+ALSA active */
+} EdgaiVoiceState;
+
 /* Forward-declare opaque llama.cpp types — defined in llama.h at compile time */
 struct llama_model;
 struct llama_context;
@@ -72,6 +89,14 @@ typedef struct {
     char                   current_question_id[64];
     int                    step_index;
     int                    total_steps;
+
+    /* Phase 5 — voice pipeline (opaque pointers; defined in voice/*.c) */
+    void          *vosk_model;    /* VoskModel*   — NULL when voice disabled  */
+    void          *vosk_rec;      /* VoskRecognizer* — per-turn lifecycle      */
+    void          *piper_ctx;     /* PiperContext* — NULL when voice disabled  */
+    EdgaiVoiceState voice_state;
+    int             voice_enabled; /* 0 if EDGAI_DISABLE_VOICE=1 or no model   */
+    int             speak_interrupt; /* atomic flag: 1 = cancel active playback */
 } EdgaiSession;
 
 typedef struct {
