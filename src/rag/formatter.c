@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "eduos/eduos_types.h"
+#include "edgai/edgai_types.h"
 
 /*
  * Return a heap-allocated copy of raw truncated to the first n_sentences.
@@ -57,17 +57,17 @@ static char *first_n_sentences(const char *raw, int n)
  *
  * Returns heap-allocated string. Caller must free.
  */
-char *eduos_format_response(const char *raw, eduos_age_mode_t mode)
+char *edgai_format_response(const char *raw, EdgaiAgeMode mode)
 {
     if (!raw) return strdup("");
 
     switch (mode) {
-    case EDUOS_MODE_PLAYGROUND:
-    case EDUOS_MODE_EXPLORER:
+    case EDGAI_MODE_PLAYGROUND:
+    case EDGAI_MODE_EXPLORER:
         return first_n_sentences(raw, 2);
 
-    case EDUOS_MODE_LAUNCHPAD:
-    case EDUOS_MODE_PROFESSIONAL:
+    case EDGAI_MODE_LAUNCHPAD:
+    case EDGAI_MODE_PROFESSIONAL:
     default:
         return strdup(raw);
     }

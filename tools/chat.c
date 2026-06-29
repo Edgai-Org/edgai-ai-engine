@@ -2,11 +2,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2024 EduOS-Org
  *
- * tools/chat.c — interactive CLI for libeduos.
+ * tools/chat.c — interactive CLI for libedgai.
  *
  * Usage:
- *   ./eduos-chat
- *   EDUOS_MODELS_DIR=~/.eduos/models ./eduos-chat
+ *   ./edgai-chat
+ *   EDGAI_MODELS_DIR=~/.edgai/models ./edgai-chat
  *
  * Type 'quit' or 'exit' to end the session.
  */
@@ -15,54 +15,54 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "eduos/eduos.h"
+#include "edgai/edgai.h"
 
 #define LINE_MAX_LEN 1024
 
-static const char *state_name(eduos_sequence_state_t s)
+static const char *state_name(EdgaiSequenceState s)
 {
     switch (s) {
-        case EDUOS_STATE_CONCEPT:  return "CONCEPT";
-        case EDUOS_STATE_HOOK:     return "HOOK";
-        case EDUOS_STATE_PREDICT:  return "PREDICT";
-        case EDUOS_STATE_STEPS:    return "STEPS";
-        case EDUOS_STATE_VERIFY:   return "VERIFY";
-        case EDUOS_STATE_PRACTICE: return "PRACTICE";
-        case EDUOS_STATE_CLOSE:    return "CLOSE";
-        case EDUOS_STATE_DONE:     return "DONE";
+        case EDGAI_STATE_CONCEPT:  return "CONCEPT";
+        case EDGAI_STATE_HOOK:     return "HOOK";
+        case EDGAI_STATE_PREDICT:  return "PREDICT";
+        case EDGAI_STATE_STEPS:    return "STEPS";
+        case EDGAI_STATE_VERIFY:   return "VERIFY";
+        case EDGAI_STATE_PRACTICE: return "PRACTICE";
+        case EDGAI_STATE_CLOSE:    return "CLOSE";
+        case EDGAI_STATE_DONE:     return "DONE";
         default:                   return "?";
     }
 }
 
-static const char *ram_tier_name(eduos_ram_tier_t t)
+static const char *ram_tier_name(EdgaiRamTier t)
 {
     switch (t) {
-        case EDUOS_RAM_TIER_LOW:  return "LOW (<2 GB)";
-        case EDUOS_RAM_TIER_MID:  return "MID (<4 GB)";
-        case EDUOS_RAM_TIER_HIGH: return "HIGH (4 GB+)";
+        case EDGAI_RAM_TIER_LOW:  return "LOW (<2 GB)";
+        case EDGAI_RAM_TIER_MID:  return "MID (<4 GB)";
+        case EDGAI_RAM_TIER_HIGH: return "HIGH (4 GB+)";
         default:                  return "?";
     }
 }
 
-static const char *age_mode_name(eduos_age_mode_t m)
+static const char *age_mode_name(EdgaiAgeMode m)
 {
     switch (m) {
-        case EDUOS_MODE_PLAYGROUND:   return "PLAYGROUND (3-10)";
-        case EDUOS_MODE_EXPLORER:     return "EXPLORER (10-15)";
-        case EDUOS_MODE_LAUNCHPAD:    return "LAUNCHPAD (15-19)";
-        case EDUOS_MODE_PROFESSIONAL: return "PROFESSIONAL (20+)";
+        case EDGAI_MODE_PLAYGROUND:   return "PLAYGROUND (3-10)";
+        case EDGAI_MODE_EXPLORER:     return "EXPLORER (10-15)";
+        case EDGAI_MODE_LAUNCHPAD:    return "LAUNCHPAD (15-19)";
+        case EDGAI_MODE_PROFESSIONAL: return "PROFESSIONAL (20+)";
         default:                      return "?";
     }
 }
 
 int main(void)
 {
-    printf("eduos-chat — EduOS interactive session\n");
+    printf("edgai-chat — EduOS interactive session\n");
     printf("---------------------------------------\n");
 
-    eduos_session_t *session = eduos_init(NULL);
+    EdgaiSession *session = edgai_init(NULL);
     if (!session) {
-        fprintf(stderr, "ERROR: eduos_init() returned NULL\n");
+        fprintf(stderr, "ERROR: edgai_init() returned NULL\n");
         return 1;
     }
 
@@ -97,9 +97,9 @@ int main(void)
         if (strcmp(line, "quit") == 0 || strcmp(line, "exit") == 0)
             break;
 
-        eduos_response_t *resp = eduos_query(session, line);
+        EdgaiResponse *resp = edgai_query(session, line);
         if (!resp) {
-            fprintf(stderr, "ERROR: eduos_query() returned NULL\n");
+            fprintf(stderr, "ERROR: edgai_query() returned NULL\n");
             continue;
         }
 
@@ -110,9 +110,9 @@ int main(void)
                    resp->text ? resp->text : "(no text)");
         }
 
-        eduos_response_free(resp);
+        edgai_response_free(resp);
     }
 
-    eduos_destroy(session);
+    edgai_destroy(session);
     return 0;
 }

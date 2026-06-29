@@ -9,7 +9,7 @@
 #include <string.h>
 #include <math.h>
 
-#include "eduos/eduos_rag.h"
+#include "edgai/edgai_rag.h"
 
 /*
  * Compute a combined rank score.
@@ -17,7 +17,7 @@
  * We negate so higher combined score = better.
  * Length penalty: shorter question_text = more specific = bonus.
  */
-static float combined_score(const eduos_rag_result_t *r)
+static float combined_score(const EdgaiRagResult *r)
 {
     float bm25 = -r->score; /* negate: higher now means more relevant */
     float len_bonus = 0.0f;
@@ -27,13 +27,13 @@ static float combined_score(const eduos_rag_result_t *r)
 }
 
 /* Insertion sort — result counts are small (top_k ≤ 10 typically) */
-void eduos_rag_rank(eduos_rag_result_t *results, int count)
+void edgai_rag_rank(EdgaiRagResult *results, int count)
 {
     if (!results || count <= 1)
         return;
 
     for (int i = 1; i < count; i++) {
-        eduos_rag_result_t key = results[i];
+        EdgaiRagResult key = results[i];
         float key_score = combined_score(&key);
         int j = i - 1;
         while (j >= 0 && combined_score(&results[j]) < key_score) {

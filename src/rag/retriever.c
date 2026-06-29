@@ -11,13 +11,13 @@
 #include <string.h>
 
 #include <sqlite3.h>
-#include "eduos/eduos_rag.h"
+#include "edgai/edgai_rag.h"
 
 /* Forward declaration from preprocessor.c */
-char *eduos_preprocess_query(const char *raw_query);
+char *edgai_preprocess_query(const char *raw_query);
 
 /* Forward declaration from ranker.c */
-void eduos_rag_rank(eduos_rag_result_t *results, int count);
+void edgai_rag_rank(EdgaiRagResult *results, int count);
 
 static char *dup_column(sqlite3_stmt *stmt, int col)
 {
@@ -39,10 +39,10 @@ static const char *FTS_SQL =
     "ORDER BY score "
     "LIMIT ?;";
 
-eduos_rag_result_t *eduos_rag_retrieve(
+EdgaiRagResult *edgai_rag_retrieve(
     struct sqlite3   *db,
     const char       *raw_query,
-    eduos_age_mode_t  mode,
+    EdgaiAgeMode  mode,
     int               top_k,
     int              *out_count)
 {
@@ -52,7 +52,7 @@ eduos_rag_result_t *eduos_rag_retrieve(
     if (!db || !raw_query || top_k <= 0)
         return NULL;
 
-    char *processed = eduos_preprocess_query(raw_query);
+    char *processed = edgai_preprocess_query(raw_query);
     if (!processed || processed[0] == '\0') {
         free(processed);
         return NULL;
@@ -70,7 +70,7 @@ eduos_rag_result_t *eduos_rag_retrieve(
 
     /* Collect results into a dynamically grown array */
     int capacity = top_k;
-    eduos_rag_result_t *results = calloc((size_t)capacity, sizeof(eduos_rag_result_t));
+    EdgaiRagResult *results = calloc((size_t)capacity, sizeof(EdgaiRagResult));
     if (!results) {
         sqlite3_finalize(stmt);
         return NULL;
@@ -78,7 +78,7 @@ eduos_rag_result_t *eduos_rag_retrieve(
 
     int count = 0;
     while (sqlite3_step(stmt) == SQLITE_ROW && count < top_k) {
-        eduos_rag_result_t *r = &results[count];
+        EdgaiRagResult *r = &results[count];
 
         const unsigned char *id = sqlite3_column_text(stmt, 0);
         if (id)
@@ -100,13 +100,13 @@ eduos_rag_result_t *eduos_rag_retrieve(
     }
 
     /* Re-rank: BM25 + length weighting */
-    eduos_rag_rank(results, count);
+    edgai_rag_rank(results, count);
 
     *out_count = count;
     return results;
 }
 
-void eduos_rag_results_free(eduos_rag_result_t *results, int count)
+void edgai_rag_results_free(EdgaiRagResult *results, int count)
 {
     if (!results) return;
     for (int i = 0; i < count; i++) {

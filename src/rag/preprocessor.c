@@ -12,7 +12,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "eduos/eduos_types.h"
+#include "edgai/edgai_types.h"
 
 /* ── Stop words ─────────────────────────────────────────────────────────── */
 
@@ -35,9 +35,9 @@ static int is_stop_word(const char *word)
 
 /* ── Synonym expansion ──────────────────────────────────────────────────── */
 
-typedef struct { const char *term; const char *canonical; } eduos_synonym_t;
+typedef struct { const char *term; const char *canonical; } edgai_synonym_t;
 
-static const eduos_synonym_t SYNONYMS[] = {
+static const edgai_synonym_t SYNONYMS[] = {
     {"log",       "logarithm"},
     {"logs",      "logarithm"},
     {"trig",      "trigonometry"},
@@ -319,7 +319,7 @@ static void step5b(char *word, int *k)
  * Returns new length of the stemmed word.
  * Not static — exported so test_preprocessor can call it directly.
  */
-int eduos_porter_stem(char *word, int len)
+int edgai_porter_stem(char *word, int len)
 {
     if (len <= 2) return len;
 
@@ -349,7 +349,7 @@ int eduos_porter_stem(char *word, int len)
  * Returns heap-allocated string. Caller must free.
  * Returns NULL on allocation failure.
  */
-char *eduos_preprocess_query(const char *raw_query)
+char *edgai_preprocess_query(const char *raw_query)
 {
     if (!raw_query) return NULL;
 
@@ -406,7 +406,7 @@ char *eduos_preprocess_query(const char *raw_query)
 
             if (is_stop_word(word)) continue;
 
-            int stemmed_len = eduos_porter_stem(word, (int)wlen);
+            int stemmed_len = edgai_porter_stem(word, (int)wlen);
             if (stemmed_len == 0) continue;
 
             if (out_len + (size_t)stemmed_len + 2 > out_cap) {

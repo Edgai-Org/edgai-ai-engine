@@ -3,7 +3,7 @@
  * Copyright (C) 2024 EduOS-Org
  *
  * test_retriever.c — Phase 4: FTS5 retrieval test.
- * Uses demo_curriculum.db (EDUOS_DB_PATH env or repo-relative path).
+ * Uses demo_curriculum.db (EDGAI_DB_PATH env or repo-relative path).
  * Asserts: at least 1 result returned; question_id starts with "demo-".
  */
 
@@ -13,29 +13,29 @@
 #include <string.h>
 
 #include <sqlite3.h>
-#include "eduos/eduos.h"
-#include "eduos/eduos_rag.h"
+#include "edgai/edgai.h"
+#include "edgai/edgai_rag.h"
 
 int main(void)
 {
     printf("test_retriever: FTS5 retrieval from demo_curriculum.db\n\n");
 
-    const char *db_path = getenv("EDUOS_DB_PATH");
+    const char *db_path = getenv("EDGAI_DB_PATH");
     if (!db_path) db_path = "db/demo/demo_curriculum.db";
 
     sqlite3 *db = NULL;
     int rc = sqlite3_open_v2(db_path, &db, SQLITE_OPEN_READONLY, NULL);
     if (rc != SQLITE_OK || !db) {
         printf("  WARNING: cannot open '%s'\n", db_path);
-        printf("  Run from repo root or set EDUOS_DB_PATH.\n");
+        printf("  Run from repo root or set EDGAI_DB_PATH.\n");
         printf("test_retriever: SKIPPED\n");
         return 0;
     }
 
     /* Test 1: query 'logarithm' */
     int count = 0;
-    eduos_rag_result_t *results = eduos_rag_retrieve(
-        db, "logarithm", EDUOS_MODE_LAUNCHPAD, 5, &count);
+    EdgaiRagResult *results = edgai_rag_retrieve(
+        db, "logarithm", EDGAI_MODE_LAUNCHPAD, 5, &count);
 
     printf("  query='logarithm': %d result(s)\n", count);
     assert(count >= 1);
@@ -50,13 +50,13 @@ int main(void)
     printf("              steps=%s\n",
            results[0].steps_json ? "present" : "(null)");
 
-    eduos_rag_results_free(results, count);
+    edgai_rag_results_free(results, count);
 
     /* Test 2: query 'quadratic' */
     count = 0;
-    results = eduos_rag_retrieve(db, "quadratic", EDUOS_MODE_EXPLORER, 3, &count);
+    results = edgai_rag_retrieve(db, "quadratic", EDGAI_MODE_EXPLORER, 3, &count);
     printf("\n  query='quadratic': %d result(s)\n", count);
-    if (results) eduos_rag_results_free(results, count);
+    if (results) edgai_rag_results_free(results, count);
 
     sqlite3_close(db);
     printf("\ntest_retriever: PASS\n");

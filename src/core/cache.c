@@ -1,5 +1,5 @@
 /*
- * cache.c — EduOS libeduos
+ * cache.c — EduOS libedgai
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2024 EduOS-Org
  *
@@ -7,6 +7,6 @@
  * See AI_ENGINE.md for the full roadmap.
  */
 
-#include "eduos/eduos.h"
+#include "edgai/edgai.h"
 
 /* stub */

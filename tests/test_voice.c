@@ -1,5 +1,5 @@
 /*
- * test_voice.c — EduOS libeduos tests
+ * test_voice.c — EduOS libedgai tests
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2024 EduOS-Org
  *
@@ -8,7 +8,7 @@
  */
 
 #include <stdio.h>
-#include "eduos/eduos.h"
+#include "edgai/edgai.h"
 
 int main(void)
 {

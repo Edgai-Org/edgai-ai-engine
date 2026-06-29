@@ -1,5 +1,5 @@
 /*
- * speak.c — EduOS libeduos
+ * speak.c — EduOS libedgai
  * SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright (C) 2024 EduOS-Org
  *
@@ -7,9 +7,9 @@
  * See AI_ENGINE.md for the full roadmap.
  */
 
-#include "eduos/eduos.h"
+#include "edgai/edgai.h"
 
-uint8_t *eduos_speak(eduos_session_t *session __attribute__((unused)),
+uint8_t *edgai_speak(EdgaiSession *session __attribute__((unused)),
                      const char      *text    __attribute__((unused)),
                      size_t          *out_len)
 {

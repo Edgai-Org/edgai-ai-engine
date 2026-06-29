@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
-project(libeduos VERSION 0.2.0 DESCRIPTION "EduOS AI engine library" LANGUAGES C CXX)
+project(libedgai VERSION 0.2.0 DESCRIPTION "EduOS AI engine library" LANGUAGES C CXX)
 
-# llama.cpp requires C++17 in its own build; we only need C11 for libeduos itself
+# llama.cpp requires C++17 in its own build; we only need C11 for libedgai itself
 set(CMAKE_C_STANDARD   11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
@@ -46,8 +46,8 @@ add_subdirectory(vendor/llama.cpp)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 
-# ── libeduos source files ────────────────────────────────────────────────────
-set(EDUOS_SOURCES
+# ── libedgai source files ────────────────────────────────────────────────────
+set(EDGAI_SOURCES
     # Core — Phase 3+4 implementations
     src/core/session.c
     src/core/query.c
@@ -74,9 +74,9 @@ set(EDUOS_SOURCES
     bindings/android/jni/eduos_jni.c
 )
 
-add_library(eduos SHARED ${EDUOS_SOURCES})
+add_library(edgai SHARED ${EDGAI_SOURCES})
 
-target_include_directories(eduos
+target_include_directories(edgai
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
@@ -89,40 +89,40 @@ target_include_directories(eduos
 )
 
 # Link against llama target provided by add_subdirectory(vendor/llama.cpp)
-target_link_libraries(eduos
+target_link_libraries(edgai
     PRIVATE
         llama
         ${SQLITE3_LIBRARIES}
         m
 )
 
-target_compile_options(eduos PRIVATE -Wall -Wextra -Wpedantic)
+target_compile_options(edgai PRIVATE -Wall -Wextra -Wpedantic)
 
-set_target_properties(eduos PROPERTIES
+set_target_properties(edgai PROPERTIES
     VERSION   ${PROJECT_VERSION}
     SOVERSION 0
-    OUTPUT_NAME "eduos"
+    OUTPUT_NAME "edgai"
 )
 
 # ── Socket fallback compile option ───────────────────────────────────────────
 # Emergency only — uses Phase 3 engine.py socket proxy instead of llama.cpp.
-# Enable with: cmake .. -DEDUOS_SOCKET_FALLBACK=ON
-option(EDUOS_SOCKET_FALLBACK
+# Enable with: cmake .. -DEDGAI_SOCKET_FALLBACK=ON
+option(EDGAI_SOCKET_FALLBACK
     "Use Python engine.py socket proxy instead of llama.cpp (emergency fallback only)"
     OFF)
-if(EDUOS_SOCKET_FALLBACK)
-    target_compile_definitions(eduos PRIVATE EDUOS_SOCKET_FALLBACK=1)
-    message(STATUS "EduOS: socket fallback ENABLED — using engine.py, NOT llama.cpp")
+if(EDGAI_SOCKET_FALLBACK)
+    target_compile_definitions(edgai PRIVATE EDGAI_SOCKET_FALLBACK=1)
+    message(STATUS "Edgai: socket fallback ENABLED — using engine.py, NOT llama.cpp")
 endif()
 
 # ── Tests ────────────────────────────────────────────────────────────────────
 enable_testing()
 
-function(add_eduos_test name)
+function(add_edgai_test name)
     add_executable(${name} tests/${name}.c)
-    # Link sqlite3 explicitly: eduos links it PRIVATE so it doesn't
+    # Link sqlite3 explicitly: edgai links it PRIVATE so it doesn't
     # propagate to test executables that call sqlite3 functions directly.
-    target_link_libraries(${name} PRIVATE eduos ${SQLITE3_LIBRARIES})
+    target_link_libraries(${name} PRIVATE edgai ${SQLITE3_LIBRARIES})
     target_include_directories(${name} PRIVATE
         include
         ${SQLITE3_INCLUDE_DIRS}
@@ -131,24 +131,24 @@ function(add_eduos_test name)
     add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
-add_eduos_test(test_session)
-add_eduos_test(test_query)
-add_eduos_test(test_rag)
-add_eduos_test(test_voice)
-add_eduos_test(test_inference)
-add_eduos_test(test_retriever)
-add_eduos_test(test_state)
-add_eduos_test(test_preprocessor)
+add_edgai_test(test_session)
+add_edgai_test(test_query)
+add_edgai_test(test_rag)
+add_edgai_test(test_voice)
+add_edgai_test(test_inference)
+add_edgai_test(test_retriever)
+add_edgai_test(test_state)
+add_edgai_test(test_preprocessor)
 
 # ── Tools ────────────────────────────────────────────────────────────────────
-add_executable(eduos-chat tools/chat.c)
-target_link_libraries(eduos-chat PRIVATE eduos)
-target_include_directories(eduos-chat PRIVATE include)
-target_compile_options(eduos-chat PRIVATE -Wall -Wextra -Wpedantic)
+add_executable(edgai-chat tools/chat.c)
+target_link_libraries(edgai-chat PRIVATE edgai)
+target_include_directories(edgai-chat PRIVATE include)
+target_compile_options(edgai-chat PRIVATE -Wall -Wextra -Wpedantic)
 
 # ── Install ──────────────────────────────────────────────────────────────────
-install(TARGETS eduos
+install(TARGETS edgai
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
 )
-install(DIRECTORY include/eduos DESTINATION include)
+install(DIRECTORY include/edgai DESTINATION include)
