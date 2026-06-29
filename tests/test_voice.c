@@ -30,6 +30,7 @@
 /* 3. Local includes */
 #include "edgai/edgai.h"
 #include "../src/voice/sanitize.h"
+#include "../src/voice/audio_capture.h"
 #include "../src/voice/vad.h"
 
 /* 4. Test helpers */
