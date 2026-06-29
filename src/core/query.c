@@ -17,6 +17,11 @@
 #include "edgai/edgai.h"
 #include "edgai/edgai_rag.h"
 
+#ifdef EDGAI_VOICE_ENABLED
+#include "../voice/transcribe.h"
+#include "../voice/speak.h"
+#endif
+
 /* ── Forward declarations ───────────────────────────────────────────────── */
 
 /* state.c */
@@ -441,4 +446,63 @@ void edgai_response_free(EdgaiResponse *response)
     free(response->text);
     free(response->error);
     free(response);
+}
+
+/*
+ * edgai_voice_turn — one full voice interaction cycle:
+ *   1. Capture mic audio via VAD-gated Vosk STT (blocks until end of speech)
+ *   2. Feed transcript to edgai_query() to get a teaching response
+ *   3. Speak the response text via Piper+ALSA (blocks until playback completes
+ *      or session->speak_interrupt is set by caller)
+ *
+ * Returns the EdgaiResponse* that resulted from the transcript, or NULL if
+ * no speech was detected, voice is disabled, or an error occurred.
+ * Caller must free the returned response with edgai_response_free().
+ *
+ * State transitions set on session->voice_state by the sub-functions:
+ *   IDLE → LISTENING (in edgai_transcribe_listen)
+ *   LISTENING → TRANSCRIBED (on speech detected)
+ *   TRANSCRIBED → GENERATING (set here before edgai_query)
+ *   GENERATING → SPEAKING (set here before edgai_speak)
+ *   SPEAKING → IDLE (set here on completion)
+ */
+EdgaiResponse *edgai_voice_turn(EdgaiSession *session)
+{
+    if (!session)
+        return NULL;
+
+#ifndef EDGAI_VOICE_ENABLED
+    return NULL;
+#else
+    if (!session->voice_enabled)
+        return NULL;
+
+    /* ── Step 1: Transcribe ─────────────────────────────────────────── */
+    char *transcript = edgai_transcribe_listen(session);
+    if (!transcript) {
+        session->voice_state = EDGAI_VOICE_STATE_IDLE;
+        return NULL;
+    }
+
+    fprintf(stderr, "edgai: voice transcript: %s\n", transcript);
+
+    /* ── Step 2: Generate response ──────────────────────────────────── */
+    session->voice_state = EDGAI_VOICE_STATE_GENERATING;
+
+    EdgaiResponse *resp = edgai_query(session, transcript);
+    free(transcript);
+
+    if (!resp || !resp->text) {
+        session->voice_state = EDGAI_VOICE_STATE_IDLE;
+        return resp;
+    }
+
+    /* ── Step 3: Speak response ─────────────────────────────────────── */
+    session->voice_state = EDGAI_VOICE_STATE_SPEAKING;
+
+    edgai_speak(session, resp->text);
+
+    session->voice_state = EDGAI_VOICE_STATE_IDLE;
+    return resp;
+#endif
 }

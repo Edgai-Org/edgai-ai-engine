@@ -50,6 +50,17 @@ char *edgai_transcribe(EdgaiSession *session, const uint8_t *audio, size_t len);
 uint8_t *edgai_speak(EdgaiSession *session, const char *text, size_t *out_len);
 
 /*
+ * edgai_voice_turn — one complete voice interaction cycle (Phase 5)
+ *
+ * Blocks for up to 10 seconds of mic capture, then generates and speaks
+ * the response. Returns the EdgaiResponse* from the LLM, or NULL if no
+ * speech was detected or voice is disabled.
+ * Caller must free with edgai_response_free().
+ * Only available when compiled with EDGAI_VOICE=ON.
+ */
+EdgaiResponse *edgai_voice_turn(EdgaiSession *session);
+
+/*
  * edgai_set_mode — switch age mode mid-session
  *
  * Fires D-Bus signal to compositor (Phase 6).
