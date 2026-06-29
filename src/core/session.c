@@ -136,6 +136,7 @@ EdgaiSession *edgai_init(const char *profile_path)
                 tier->model_filename);
         /* Session still works — DB-driven states will function */
         session->db = open_curriculum_db();
+        edgai_voice_init(session);
         return session;
     }
 
@@ -149,6 +150,7 @@ EdgaiSession *edgai_init(const char *profile_path)
     if (!session->llm_model) {
         fprintf(stderr, "edgai: failed to load model — LLM disabled\n");
         session->db = open_curriculum_db();
+        edgai_voice_init(session);
         return session;
     }
 
@@ -170,11 +172,14 @@ EdgaiSession *edgai_init(const char *profile_path)
         llama_model_free(session->llm_model);
         session->llm_model = NULL;
         session->db = open_curriculum_db();
+        edgai_voice_init(session);
         return session;
     }
 
     session->llm_sampler = build_sampler();
     session->db          = open_curriculum_db();
+
+    edgai_voice_init(session);
 
     return session;
 }
@@ -182,6 +187,8 @@ EdgaiSession *edgai_init(const char *profile_path)
 void edgai_destroy(EdgaiSession *session)
 {
     if (!session) return;
+
+    edgai_voice_destroy(session);
 
     if (session->llm_sampler) llama_sampler_free(session->llm_sampler);
     if (session->llm_ctx)     llama_free(session->llm_ctx);
@@ -196,3 +203,41 @@ void edgai_destroy(EdgaiSession *session)
 }
 
 /* edgai_set_mode is defined in src/dbus/signals.c (Phase 6 D-Bus stub lives there) */
+
+/* ── Phase 5 voice init/destroy wired into session lifecycle ────────────── */
+
+#ifdef EDGAI_VOICE_ENABLED
+#include "../voice/transcribe.h"
+#include "../voice/speak.h"
+#endif
+
+/*
+ * Called at the tail of edgai_init() after the LLM and DB are ready.
+ * On success, session->voice_enabled is set to 1.
+ * On failure (missing models), voice is silently disabled — text-only mode.
+ */
+void edgai_voice_init(EdgaiSession *session)
+{
+    if (!session) return;
+#ifdef EDGAI_VOICE_ENABLED
+    /* Transcribe init: loads Vosk model on 4 GB+ tier */
+    edgai_transcribe_init(session);
+    /* Speak init: loads Piper model on 4 GB+ tier */
+    edgai_speak_init(session);
+    /* Both must succeed for voice to be enabled */
+    if (!session->vosk_model && !session->is_mobile)
+        session->voice_enabled = 0;
+#else
+    session->voice_enabled = 0;
+#endif
+}
+
+/* Called at the head of edgai_destroy() before LLM teardown. */
+void edgai_voice_destroy(EdgaiSession *session)
+{
+    if (!session) return;
+#ifdef EDGAI_VOICE_ENABLED
+    edgai_speak_destroy(session);
+    edgai_transcribe_destroy(session);
+#endif
+}
